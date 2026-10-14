@@ -71,6 +71,9 @@ const C={
   SKEW_N:[2,3],         // số ký tự bị skew
   REF:200,              // font-size tham chiếu để đo
   SAT:[80,100],LIG:[45,60], // dải HSL cho màu ngẫu nhiên
+  NEU_P:0.4,            // xác suất có 1 màu trung tính (trắng/đen/xám) khi random
+  NEU_BOTH:0.2,         // trong số đó, xác suất CẢ nền lẫn chữ đều trung tính
+  GRAY_L:[78,90],GRAY_D:[10,24], // độ sáng xám nhạt / xám đậm (%)
   DEF_FAM:'"Avenir Next Condensed","Helvetica Neue Condensed Bold","Arial Narrow",sans-serif',
   DEF_W:800,
   DEF_NAME:'Avenir Next Condensed'
@@ -101,10 +104,23 @@ function ensureSkew(){ // giữ skew cũ nếu còn hợp lệ khi sửa text
 function hsl2hex(h,s,l){s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l);
   const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,9-k(n),1));
   return '#'+[f(0),f(8),f(4)].map(x=>Math.round(x*255).toString(16).padStart(2,'0')).join('').toUpperCase();}
+const gray=l=>hsl2hex(0,0,l);
+const NEU={ // màu trung tính: sáng = trắng hoặc xám nhạt, tối = đen hoặc xám đậm
+  light:()=>Math.random()<.5?'#FFFFFF':gray(rnd(...C.GRAY_L)),
+  dark:()=>Math.random()<.5?'#000000':gray(rnd(...C.GRAY_D))
+};
 function randomColor(){
-  const h=rnd(0,360);
-  st.bg=hsl2hex(h,rnd(...C.SAT),rnd(...C.LIG));
-  st.fg=hsl2hex((h+180)%360,rnd(...C.SAT),rnd(...C.LIG));
+  const h=rnd(0,360),col=hh=>hsl2hex(hh,rnd(...C.SAT),rnd(...C.LIG));
+  let bg=col(h),fg=col((h+180)%360);
+  if(Math.random()<C.NEU_P){
+    const light=Math.random()<.5,n=light?NEU.light():NEU.dark();
+    if(Math.random()<C.NEU_BOTH){ // cả hai trung tính: một sáng, một tối
+      const m=light?NEU.dark():NEU.light();
+      [bg,fg]=Math.random()<.5?[n,m]:[m,n];
+    }else if(Math.random()<.5)bg=n; // nền trung tính, chữ có màu
+    else fg=n;                      // chữ trung tính, nền có màu
+  }
+  st.bg=bg;st.fg=fg;
 }
 
 /* ===== Layout: trả về danh sách glyph + transform ===== */
